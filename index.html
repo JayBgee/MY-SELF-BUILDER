@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Coach Mode</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Karla:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* =========================================
+     CSS VARIABLES & BASE STYLES
+     ========================================= */
+  :root {
+    --bg: #090b0f; --s1: #101318; --s2: #171b24; --s3: #1e2230;
+    --gold: #f5c842; --red: #e8503a; --green: #3ecf7e; --blue: #5aa4f5;
+    --pink: #f06292; --purple: #9b87f5; --orange: #f08c42;
+    --text: #eceef4; --sub: #8891a8; --border: rgba(255,255,255,0.07);
+    --gold-d: rgba(245,200,66,0.1); --green-d: rgba(62,207,126,0.1);
+    --red-d: rgba(232,80,58,0.1); --blue-d: rgba(90,164,245,0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { scroll-behavior: smooth; font-size: 16px; }
+  body { background: var(--bg); color: var(--text); font-family: 'Karla', sans-serif; min-height: 100vh; overflow-x: hidden; padding-bottom: 80px; }
+
+  /* =========================================
+     LAYOUT & NAVIGATION
+     ========================================= */
+  .clock-bar {
+    background: var(--s1); border-bottom: 1px solid var(--border); padding: 0.45rem 1rem;
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--sub);
+    position: sticky; top: 0; z-index: 200;
+  }
+  .clock-date { color: var(--text); font-size: 0.68rem; }
+  .clock-time { color: var(--gold); font-size: 0.72rem; font-weight: 600; }
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+    background: rgba(9,11,15,0.97); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex;
+  }
+  .bn-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.2rem; padding: 0.6rem 0.3rem; cursor: pointer; border: none; background: none;
+    color: var(--sub); transition: color 0.2s; font-size: 0.55rem;
+    font-family: 'JetBrains Mono', monospace; letter-spacing: 0.3px; text-transform: uppercase;
+  }
+  .bn-tab .icon { font-size: 1.1rem; line-height: 1; }
+  .bn-tab.active { color: var(--gold); }
+  .bn-tab.active .icon { filter: drop-shadow(0 0 6px rgba(245,200,66,0.6)); }
+
+  /* =========================================
+     PAGES & TYPOGRAPHY
+     ========================================= */
+  .page { display: none; padding: 1rem; max-width: 680px; margin: 0 auto; }
+  .page.active { display: block; animation: fadeUp 0.3s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .page-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.6rem; margin-bottom: 0.25rem; }
+  .page-sub { font-size: 0.8rem; color: var(--sub); margin-bottom: 1.2rem; line-height: 1.45; }
+  .sec { font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; letter-spacing: 2px; color: var(--sub); text-transform: uppercase; margin: 1.3rem 0 0.7rem; display: flex; align-items: center; gap: 0.5rem; }
+  .sec::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem; }
+  .card + .card { margin-top: 0.6rem; }
+
+  /* =========================================
+     SCHEDULE
+     ========================================= */
+  .sblock { display: flex; gap: 0.8rem; align-items: flex-start; padding: 0.75rem 1rem; background: var(--s1); border: 1px solid var(--border); border-radius: 9px; border-left: 3px solid transparent; margin-bottom: 0.35rem; transition: background 0.15s; }
+  .sblock:active { background: var(--s2); }
+  .stime { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--sub); min-width: 72px; padding-top: 2px; }
+  .sinfo .stitle { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.08rem; }
+  .sinfo .sdesc { font-size: 0.71rem; color: var(--sub); line-height: 1.35; }
+  
+  .sc-routine { border-left-color: #6ee7f7; } .sc-class { border-left-color: var(--blue); }
+  .sc-cook, .sc-gf { border-left-color: var(--pink); } .sc-chores { border-left-color: var(--red); }
+  .sc-layouts { border-left-color: var(--orange); } .sc-workout { border-left-color: var(--green); }
+  .sc-dinner { border-left-color: #f9a96e; } .sc-hustle { border-left-color: var(--gold); }
+  .sc-sleep { border-left-color: var(--purple); }
+
+  /* =========================================
+     MONEY
+     ========================================= */
+  .money-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.9rem; }
+  .money-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .mcard { background: var(--s1); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 0.8rem; text-align: center; }
+  .mcard-lbl { font-size: 0.65rem; color: var(--sub); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.3rem; }
+  .mcard-val { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; line-height: 1; }
+  .v-g { color: var(--green); } .v-r { color: var(--red); } .v-o { color: var(--gold); } .v-b { color: var(--blue); }
+  .mcard-sub { font-size: 0.62rem; color: var(--sub); margin-top: 0.2rem; }
+
+  .inp-row { display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0; border-bottom: 1px solid var(--border); }
+  .inp-row:last-child { border-bottom: none; }
+  .inp-lbl { font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem; }
+  .num-inp { background: var(--s2); border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.6rem; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; width: 100px; outline: none; text-align: right; transition: border-color 0.2s; }
+  .num-inp:focus { border-color: var(--gold); }
+
+  .bar-wrap { margin: 0.8rem 0; }
+  .bar-lbl { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--sub); margin-bottom: 0.35rem; }
+  .bar-track { background: var(--s2); border-radius: 99px; height: 7px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--green), var(--gold)); transition: width 0.4s; }
+
+  /* =========================================
+     HUSTLE & ANALYTICS UI
+     ========================================= */
+  .ui-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .ui-tab { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; padding: 0.35rem 0.8rem; border-radius: 99px; border: 1px solid var(--border); background: var(--s1); color: var(--sub); cursor: pointer; transition: all 0.18s; text-transform: uppercase; letter-spacing: 0.5px; }
+  .ui-tab.active.gold { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 600; }
+  .ui-tab.active.purple { background: var(--purple); color: #fff; border-color: var(--purple); font-weight: 600; }
+  .ui-tab.active.blue { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 600; }
+
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeUp 0.3s ease both; }
+
+  .ring-card { display: flex; align-items: center; gap: 1rem; background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 0.9rem; }
+  .ring-svg { flex-shrink: 0; }
+  .ring-bg { fill: none; stroke: var(--s3); stroke-width: 7; }
+  .ring-fill { fill: none; stroke-width: 7; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 0.5s ease; }
+  
+  .ring-info .ri-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; margin-bottom: 0.2rem; }
+  .ring-info .ri-sub { font-size: 0.73rem; color: var(--sub); }
+  .ring-info .ri-streak { font-size: 0.75rem; color: var(--gold); margin-top: 0.3rem; }
+  .ring-info .ri-income { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--green); margin-top: 0.2rem; }
+
+  .month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.7rem; }
+  .mnav-btn { background: var(--s2); border: 1px solid var(--border); border-radius: 6px; color: var(--sub); cursor: pointer; font-size: 0.9rem; padding: 0.28rem 0.65rem; transition: all 0.15s; }
+  .mnav-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.9rem; }
+
+  /* Hustle Day Entries */
+  .day-entry { background: var(--s1); border: 1px solid var(--border); border-radius: 9px; padding: 0.8rem; margin-bottom: 0.4rem; transition: all 0.18s; }
+  .day-entry.done-entry { border-color: rgba(62,207,126,0.25); background: rgba(62,207,126,0.04); }
+  .day-top { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; }
+  .day-num { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--sub); min-width: 42px; }
+  
+  .day-chk { width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid var(--border); background: transparent; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; transition: all 0.18s; cursor: pointer; }
+  .day-entry.done-entry .day-chk { background: var(--green); border-color: var(--green); color: #000; }
+  .day-entry.done-entry .day-chk::after { content: '✓'; }
+  
+  .day-preview { flex: 1; font-size: 0.78rem; color: var(--sub); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .day-preview.filled { color: var(--text); }
+  .day-income-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--green); background: var(--green-d); padding: 0.15rem 0.45rem; border-radius: 99px; flex-shrink: 0; }
+
+  .day-expand { display: none; margin-top: 0.7rem; border-top: 1px solid var(--border); padding-top: 0.7rem; }
+  .day-expand.open { display: block; }
+  .expand-lbl { font-size: 0.68rem; color: var(--sub); margin-bottom: 0.3rem; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 1px; }
+  
+  .day-textarea { width: 100%; background: var(--s2); border: 1px solid var(--border); border-radius: 7px; padding: 0.55rem 0.7rem; color: var(--text); font-family: 'Karla', sans-serif; font-size: 0.82rem; resize: none; outline: none; line-height: 1.5; min-height: 70px; }
+  .day-income-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; }
+  .day-income-inp { flex: 1; background: var(--s2); border: 1px solid var(--border); border-radius: 7px; padding: 0.45rem 0.7rem; color: var(--green); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; outline: none; }
+  
+  .btn-primary { background: var(--gold); color: #000; border: none; border-radius: 7px; padding: 0.45rem 0.9rem; font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 600; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-outline { margin-top: 0.8rem; padding: 0.4rem 0.9rem; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--sub); cursor: pointer; text-transform: uppercase; font-size: 0.6rem; }
+
+  /* =========================================
+     ANALYTICS COMPONENTS
+     ========================================= */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.9rem; }
+  .stat-card { background: var(--s1); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem; text-align: center; }
+  .stat-val { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; line-height: 1; margin-bottom: 0.2rem; }
+  .stat-lbl { font-size: 0.65rem; color: var(--sub); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .month-bar-chart { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 0.8rem; }
+  .mbc-title { font-size: 0.8rem; font-weight: 600; margin-bottom: 0.9rem; }
+  .bar-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
+  .bar-row-lbl { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--sub); min-width: 38px; }
+  .bar-row-track { flex: 1; background: var(--s2); border-radius: 99px; height: 14px; overflow: hidden; }
+  .bar-row-fill { height: 100%; border-radius: 99px; min-width: 2px; }
+  .bar-row-val { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--sub); min-width: 50px; text-align: right; }
+
+  .hsc-row { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+  .hsc-row:last-child { border-bottom: none; }
+  .hsc-name { font-size: 0.82rem; display: flex; align-items: center; gap: 0.5rem; }
+  .hsc-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .hsc-stats { text-align: right; }
+  .hsc-income { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--green); font-weight: 600; }
+  .hsc-days { font-size: 0.68rem; color: var(--sub); }
+
+  /* =========================================
+     FOOD & WORKOUT COMPONENTS
+     ========================================= */
+  .shuffle-btn { width: 100%; padding: 1rem; background: linear-gradient(135deg, #1a1a0d, var(--s1)); border: 1px solid rgba(245,200,66,0.3); border-radius: 12px; color: var(--gold); font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 1rem; }
+  .meal-result { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 0.8rem; display: none; }
+  .meal-slot-card { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); }
+  .meal-slot-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.45rem; }
+  .meal-slot-time { font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; color: var(--sub); text-transform: uppercase; }
+  .meal-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.55rem; padding: 0.15rem 0.45rem; border-radius: 99px; }
+  
+  .w-header-card { display: flex; justify-content: space-between; align-items: center; background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 0.8rem; }
+  .wh-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; }
+  
+  .ex-item { display: grid; grid-template-columns: 1fr auto 26px; align-items: center; gap: 0.8rem; padding: 0.8rem 1rem; background: var(--s1); border: 1px solid var(--border); border-radius: 9px; margin-bottom: 0.35rem; }
+  .ex-name { font-size: 0.84rem; font-weight: 600; }
+  .ex-chk { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; }
+  .ex-chk.done { background: var(--green); border-color: var(--green); color: #000; }
+  .ex-chk.done::after { content: '✓'; }
+
+  .w-note { background: var(--blue-d); border: 1px solid rgba(90,164,245,0.15); border-radius: 9px; padding: 0.8rem 1rem; font-size: 0.75rem; color: #9dc8f7; margin-top: 0.7rem; }
+  
+  /* Mobile Adjustments */
+  @media(max-width:400px) { .page-title{font-size:1.35rem;} .mcard-val{font-size:1.1rem;} .stat-val{font-size:1.2rem;} }
+</style>
+</head>
+<body>
+
+<div class="clock-bar">
+  <span class="clock-date" id="clock-date">—</span>
+  <span class="clock-time" id="clock-time">00:00:00</span>
+</div>
+
+<div id="page-schedule" class="page active">
+  <div class="page-title">Daily <span style="color:var(--gold)">Blueprint</span></div>
+  <div class="page-sub">Your real schedule — fixed and working.</div>
+  
+  <div class="sec">Weekday</div>
+  <div class="sblock sc-routine"><div class="stime">6:30–7:55</div><div class="sinfo"><div class="stitle">Morning Prep</div><div class="sdesc">Wake, hydrate, 10-min stretch. No phone first 20 mins.</div></div></div>
+  <div class="sblock sc-class"><div class="stime">8:00–5:00</div><div class="sinfo"><div class="stitle">Classes 📚</div><div class="sdesc">Be present. Sketch designs or note product ideas during free time.</div></div></div>
+  <div class="sblock sc-cook"><div class="stime">5:00–5:45</div><div class="sinfo"><div class="stitle">Cook for Family 🍳</div><div class="sdesc">Cook double always. Leftover = free baon tomorrow. See Meals tab.</div></div></div>
+  <div class="sblock sc-chores"><div class="stime">5:45–6:15</div><div class="sinfo"><div class="stitle">Chores Sprint 🧹</div><div class="sdesc">30-min timer. Dishes, sweep. Timer rings = stop.</div></div></div>
+  <div class="sblock sc-layouts"><div class="stime">6:15–7:30</div><div class="sinfo"><div class="stitle">Family Business Layouts 💼</div><div class="sdesc">Design work for the fam. Focused, no distractions.</div></div></div>
+  <div class="sblock sc-workout"><div class="stime">7:30–8:10</div><div class="sinfo"><div class="stitle">Workout 🏋️</div><div class="sdesc">Before dinner. Pull-up bar, dumbbells, bodyweight. See Workout tab.</div></div></div>
+  <div class="sblock sc-dinner"><div class="stime">8:10–8:45</div><div class="sinfo"><div class="stitle">Dinner with Family 🍽️</div><div class="sdesc">Eat together. No phone at the table.</div></div></div>
+  <div class="sblock sc-hustle"><div class="stime">8:45–10:30</div><div class="sinfo"><div class="stitle">Side Hustle Block 💰</div><div class="sdesc">YTA + FBA + TikTok Affiliate + Jersey. Log daily on Hustle tab.</div></div></div>
+  <div class="sblock sc-gf"><div class="stime">10:30–11:15</div><div class="sinfo"><div class="stitle">GF Call 💬</div><div class="sdesc">Scheduled. You show up more present this way.</div></div></div>
+  <div class="sblock sc-sleep"><div class="stime">11:30 PM</div><div class="sinfo"><div class="stitle">Sleep 😴</div><div class="sdesc">Phone outside the room. 11:30 is the hard limit.</div></div></div>
+
+  <div class="sec">Weekend</div>
+  <div class="sblock sc-workout"><div class="stime">8:00–9:00</div><div class="sinfo"><div class="stitle">Longer Workout</div><div class="sdesc">Full 45–60 mins. Best session of the week.</div></div></div>
+  <div class="sblock sc-hustle"><div class="stime">9:00–11:30</div><div class="sinfo"><div class="stitle">Hustle Deep Work</div><div class="sdesc">Batch content, bulk research, catch up on all hustles.</div></div></div>
+  <div class="sblock sc-cook"><div class="stime">Afternoon</div><div class="sinfo"><div class="stitle">Family Time + Cook</div><div class="sdesc">Bigger meal. Rest. Enjoy. You earned it.</div></div></div>
+</div>
+
+<div id="page-money" class="page">
+  <div class="page-title">Money <span style="color:var(--green)">Tracker</span></div>
+  <div class="page-sub">Resets every midnight. Each day is saved to Stats automatically.</div>
+
+  <div class="money-grid three">
+    <div class="mcard"><div class="mcard-lbl">Allowance</div><div class="mcard-val v-b" id="m-allow">₱0</div><div class="mcard-sub">daily</div></div>
+    <div class="mcard"><div class="mcard-lbl">Job Income</div><div class="mcard-val v-g" id="m-job">₱0</div><div class="mcard-sub">daily</div></div>
+    <div class="mcard"><div class="mcard-lbl">Expenses</div><div class="mcard-val v-r" id="m-exp">₱0</div><div class="mcard-sub">daily</div></div>
+  </div>
+  <div class="money-grid">
+    <div class="mcard"><div class="mcard-lbl">Daily Total</div><div class="mcard-val v-o" id="m-total">₱0</div><div class="mcard-sub">allowance + job</div></div>
+    <div class="mcard"><div class="mcard-lbl">Daily Savings</div><div class="mcard-val v-g" id="m-save">₱0</div><div class="mcard-sub">what's left</div></div>
+  </div>
+  
+  <div class="bar-wrap">
+    <div class="bar-lbl"><span>Savings Rate</span><span id="m-rate">0%</span></div>
+    <div class="bar-track"><div class="bar-fill" id="m-bar" style="width:0%"></div></div>
+  </div>
+
+  <div class="sec">Today's Input</div>
+  <div class="card" id="money-inputs">
+    <div class="inp-row"><div class="inp-lbl"><span>💵</span> Daily Allowance</div><input class="num-inp js-money-inp" type="number" id="i-allow" value="0" min="0"></div>
+    <div class="inp-row"><div class="inp-lbl"><span>💼</span> Job Salary</div><input class="num-inp js-money-inp" type="number" id="i-job" value="0" min="0"></div>
+    <div class="inp-row"><div class="inp-lbl"><span>🚌</span> Transport</div><input class="num-inp js-money-inp" type="number" id="e-fare" value="0" min="0"></div>
+    <div class="inp-row"><div class="inp-lbl"><span>🍱</span> Food / Bought</div><input class="num-inp js-money-inp" type="number" id="e-food" value="0" min="0"></div>
+    <div class="inp-row"><div class="inp-lbl"><span>🛒</span> Grocery Share</div><input class="num-inp js-money-inp" type="number" id="e-groc" value="0" min="0"></div>
+    <div class="inp-row"><div class="inp-lbl"><span>📱</span> Load / Data</div><input class="num-inp js-money-inp" type="number" id="e-load" value="0" min="0"></div>
+    <div class="inp-row"><div class="inp-lbl"><span>📚</span> School Misc</div><input class="num-inp js-money-inp" type="number" id="e-school" value="0" min="0"></div>
+    <div class="inp-row"><div class="inp-lbl"><span>💊</span> Personal</div><input class="num-inp js-money-inp" type="number" id="e-pers" value="0" min="0"></div>
+    
+    <div style="margin-top:0.8rem; display:flex;">
+      <button class="btn-primary" style="flex:1;" data-action="save-money">💾 Save Today's Record</button>
+    </div>
+    <div style="font-size:0.68rem; color:var(--sub); margin-top:0.5rem; text-align:center;" id="money-last-saved"></div>
+  </div>
+</div>
+
+<div id="page-hustle" class="page">
+  <div class="page-title">Side Hustle <span style="color:var(--gold)">Log</span></div>
+  <div class="page-sub">Write what you did each day. Log your income. Watch 30 days build.</div>
+
+  <div class="ui-tabs">
+    <button class="ui-tab active gold" data-action="tab-hustle" data-target="yta">📺 YTA</button>
+    <button class="ui-tab" data-action="tab-hustle" data-target="fba">📦 FBA</button>
+    <button class="ui-tab" data-action="tab-hustle" data-target="tiktok">🎵 TikTok</button>
+    <button class="ui-tab" data-action="tab-hustle" data-target="jersey">🎽 Jersey</button>
+  </div>
+
+  <div id="hustle-containers">
+     </div>
+</div>
+
+<div id="page-analytics" class="page">
+  <div class="page-title">Analytics <span style="color:var(--purple)">Panel</span></div>
+  <div class="page-sub">See your monthly progress across all domains.</div>
+
+  <div class="ui-tabs">
+    <button class="ui-tab active purple" data-action="tab-analytics" data-target="yta">YTA</button>
+    <button class="ui-tab" data-action="tab-analytics" data-target="fba">FBA</button>
+    <button class="ui-tab" data-action="tab-analytics" data-target="tiktok">TikTok</button>
+    <button class="ui-tab" data-action="tab-analytics" data-target="jersey">Jersey</button>
+    <button class="ui-tab" data-action="tab-analytics" data-target="all">All</button>
+    <button class="ui-tab" data-action="tab-analytics" data-target="workout">💪 Workout</button>
+    <button class="ui-tab" data-action="tab-analytics" data-target="money">💰 Money</button>
+  </div>
+
+  <div id="analytics-container">
+      </div>
+</div>
+
+<div id="page-food" class="page">
+  <div class="page-title">Meal <span style="color:var(--pink)">Shuffler</span></div>
+  <div class="page-sub">Tap shuffle to get today's meal combo. Healthy, budget Filipino food.</div>
+
+  <button class="shuffle-btn" data-action="shuffle-meal">
+    <span class="shuffle-icon">🔀</span> Shuffle Today's Meals
+  </button>
+
+  <div id="meal-result" class="meal-result"></div>
+
+  <div class="sec">Recent Shuffles</div>
+  <div class="card" id="meal-history" style="padding: 0.5rem 1rem;">
+    </div>
+</div>
+
+<div id="page-workout" class="page">
+  <div class="page-title">Workout <span style="color:var(--blue)">Routine</span></div>
+  <div class="page-sub">Pull-up bar + dumbbells + bodyweight. 30–40 mins before dinner.</div>
+
+  <div class="ui-tabs">
+    <button class="ui-tab active blue" data-action="tab-workout" data-target="mon">MON</button>
+    <button class="ui-tab" data-action="tab-workout" data-target="tue">TUE</button>
+    <button class="ui-tab" data-action="tab-workout" data-target="wed">WED</button>
+    <button class="ui-tab" data-action="tab-workout" data-target="thu">THU</button>
+    <button class="ui-tab" data-action="tab-workout" data-target="fri">FRI</button>
+    <button class="ui-tab" data-action="tab-workout" data-target="sat">SAT</button>
+    <button class="ui-tab" data-action="tab-workout" data-target="sun">SUN</button>
+  </div>
+
+  <div id="workout-containers">
+     </div>
+
+  <div class="sec">Log Today's Session</div>
+  <div class="card">
+    <div class="expand-lbl" style="margin-bottom:0.3rem;">Notes (how it felt, PR, improvements…)</div>
+    <textarea class="day-textarea" id="wlog-note" placeholder="e.g. Hit 8 pull-ups today..."></textarea>
+    
+    <div style="display:flex; gap:0.6rem; margin-top:0.6rem; align-items:flex-end;">
+      <div style="flex:1;">
+        <div class="expand-lbl" style="margin-bottom:0.3rem;">Duration (mins)</div>
+        <input class="day-income-inp" type="number" id="wlog-mins" placeholder="e.g. 35" style="width:100%;">
+      </div>
+      <button class="btn-primary" data-action="save-workout">Save Session</button>
+    </div>
+  </div>
+
+  <div class="sec">Recent Sessions</div>
+  <div id="workout-recent-sessions" style="display:flex; flex-direction:column; gap:0.4rem;">
+    </div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="bn-tab active" data-action="nav" data-target="schedule"><span class="icon">📅</span>Schedule</button>
+  <button class="bn-tab" data-action="nav" data-target="money"><span class="icon">💰</span>Money</button>
+  <button class="bn-tab" data-action="nav" data-target="hustle"><span class="icon">🎯</span>Hustle</button>
+  <button class="bn-tab" data-action="nav" data-target="analytics"><span class="icon">📊</span>Stats</button>
+  <button class="bn-tab" data-action="nav" data-target="food"><span class="icon">🍚</span>Meals</button>
+  <button class="bn-tab" data-action="nav" data-target="workout"><span class="icon">💪</span>Workout</button>
+</nav>
+
+<script>
+/**
+ * APP ARCHITECTURE
+ * 1. Storage - LocalStorage Wrapper
+ * 2. State - Centralized Data Store
+ * 3. Utils - Helper Functions
+ * 4. Modules - Specific Logic (Money, Hustles, Meals, Workouts, Analytics)
+ * 5. App - Initialization & Event Delegation
+ */
+
+// --- 1. STORAGE ---
+const Storage = {
+  save() {
+    try {
+      localStorage.setItem('cm_hustle', JSON.stringify(State.hustles));
+      localStorage.setItem('cm_workout', JSON.stringify(State.workouts));
+      localStorage.setItem('cm_money', JSON.stringify(State.money));
+      localStorage.setItem('cm_meals', JSON.stringify(State.meals));
+    } catch(e) {}
+  },
+  load() {
+    try {
+      const h = localStorage.getItem('cm_hustle');
+      if(h) State.hustles = JSON.parse(h);
+      
+      const w = localStorage.getItem('cm_workout');
+      if(w) State.workouts = JSON.parse(w);
+      
+      const m = localStorage.getItem('cm_money');
+      if(m) State.money = JSON.parse(m);
+      
+      const ml = localStorage.getItem('cm_meals');
+      if(ml) State.meals = JSON.parse(ml);
+    } catch(e) {}
+  }
+};
+
+// --- 2. STATE ---
+const State = {
+  money: [],
+  hustles: {
+    yta: { currentMonth: 1 }, fba: { currentMonth: 1 },
+    tiktok: { currentMonth: 1 }, jersey: { currentMonth: 1 }
+  },
+  workouts: [],
+  meals: [],
+  
+  // Static Configuration
+  config: {
+    hustleDefs: {
+      yta: { name: 'YouTube / YTA', color: '#f5c842' },
+      fba: { name: 'FBA / Online', color: '#3ecf7e' },
+      tiktok: { name: 'TikTok Aff.', color: '#f06292' },
+      jersey: { name: 'Jersey Design', color: '#9b87f5' }
+    },
+    mealDB: {
+      breakfast: [
+        {name:'Sinangag + Pritong Itlog + Banana', desc:'Garlic fried rice, 1–2 fried eggs.', why:'Protein + healthy fat.'},
+        {name:'Champorado + Tuyo', desc:'Chocolate rice porridge with dried salted fish.', why:'Tablea cacao = iron + antioxidants.'}
+      ],
+      lunch: [
+        {name:'Leftover from last night', desc:'Always pack leftover ulam.', why:'Zero extra cost. Build this habit.'},
+        {name:'Adobo Rice', desc:'Cold adobo reheated with sinangag.', why:'Vinegar preserved = safe.'}
+      ],
+      dinner: [
+        {name:'Ginisang Monggo', desc:'Mung beans, garlic, onion, tomato.', why:'Superfood combo. High fiber, iron.'},
+        {name:'Adobong Manok (Double Batch)', desc:'Cook double for tomorrow.', why:'Cheapest cut with most flavor.'}
+      ],
+      snack: [
+        {name:'Banana + Peanut Butter', desc:'1–2 bananas with peanut butter.', why:'Pre-workout fuel.'},
+        {name:'Hard Boiled Egg', desc:'2 boiled eggs.', why:'Purest protein snack.'}
+      ]
+    },
+    workoutDB: {
+      mon: { title: 'Push Day 🔥', meta: 'Chest · Shoulders · Triceps', badge: 'bp', class: 'bp', ex: [{n:'Wide Push-ups', eq:'Bodyweight', s:'4 × 12–15'}, {n:'Shoulder Press', eq:'Dumbbells', s:'3 × 10–12'}] },
+      tue: { title: 'Pull Day 💪', meta: 'Back · Biceps', badge: 'bl', class: 'bl', ex: [{n:'Pull-ups', eq:'Bar', s:'4 × max'}, {n:'Dumbbell Rows', eq:'Dumbbells', s:'3 × 12'}] },
+      wed: { title: 'Legs + Core 🦵', meta: 'Quads · Glutes · Abs', badge: 'bg2', class: 'bg2', ex: [{n:'Squats', eq:'Bodyweight', s:'4 × 20'}, {n:'Lunges', eq:'Bodyweight', s:'3 × 10'}] },
+      thu: { isRest: true, title: 'Active Rest', emoji: '😴', desc: 'No lifting. 20-min walk after dinner.' },
+      fri: { title: 'Full Body 💥', meta: 'Compounds', badge: 'bf', class: 'bf', ex: [{n:'Pull-ups', eq:'Bar', s:'3 × max'}, {n:'RDL', eq:'Dumbbells', s:'4 × 12'}] },
+      sat: { title: 'Core + Cardio 🏃', meta: 'Abs · Stamina', badge: 'bc', class: 'bc', ex: [{n:'Plank Hold', eq:'Bodyweight', s:'3 × 45s'}, {n:'Russian Twists', eq:'Dumbbell', s:'3 × 15'}] },
+      sun: { isRest: true, title: 'Full Rest', emoji: '🙏', desc: 'Recharge your soul. Family time.' }
+    }
+  }
+};
+
+// --- 3. UTILS ---
+const Utils = {
+  getTodayStr: () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; },
+  formatMoney: (val) => `₱${Number(val).toLocaleString()}`,
+  el: (id) => document.getElementById(id),
+  qsa: (sel) => document.querySelectorAll(sel),
+};
+
+// --- 4. MODULES ---
+const Clock = {
+  init() { this.tick(); setInterval(() => this.tick(), 1000); },
+  tick() {
+    const now = new Date();
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    Utils.el('clock-date').textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+    Utils.el('clock-time').textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  }
+};
+
+const Money = {
+  init() {
+    this.checkMidnightReset();
+    this.calc();
+  },
+  calc() {
+    const allow = +Utils.el('i-allow').value || 0;
+    const job = +Utils.el('i-job').value || 0;
+    const total = allow + job;
+    const expIds = ['e-fare','e-food','e-groc','e-load','e-school','e-pers'];
+    const exp = expIds.reduce((s, id) => s + (+Utils.el(id).value || 0), 0);
+    const save = total - exp;
+    
+    Utils.el('m-allow').textContent = Utils.formatMoney(allow);
+    Utils.el('m-job').textContent = Utils.formatMoney(job);
+    Utils.el('m-exp').textContent = Utils.formatMoney(exp);
+    Utils.el('m-total').textContent = Utils.formatMoney(total);
+    Utils.el('m-save').textContent = Utils.formatMoney(save);
+    Utils.el('m-save').className = `mcard-val ${save >= 0 ? 'v-g' : 'v-r'}`;
+    
+    const rate = total > 0 ? Math.max(0, Math.round((save / total) * 100)) : 0;
+    Utils.el('m-rate').textContent = `${rate}%`;
+    Utils.el('m-bar').style.width = `${Math.min(100, rate)}%`;
+  },
+  saveRecord() {
+    const allow = +Utils.el('i-allow').value || 0;
+    const job = +Utils.el('i-job').value || 0;
+    const expIds = ['e-fare','e-food','e-groc','e-load','e-school','e-pers'];
+    const exp = expIds.reduce((s, id) => s + (+Utils.el(id).value || 0), 0);
+    const total = allow + job;
+    const today = Utils.getTodayStr();
+    
+    // Remove old entry for today
+    State.money = State.money.filter(r => r.date !== today);
+    State.money.unshift({ date: today, allow, job, total, exp, save: total - exp });
+    if(State.money.length > 60) State.money.pop();
+    
+    Storage.save();
+    Utils.el('money-last-saved').textContent = `✓ Saved at ${new Date().toLocaleTimeString()}`;
+    expIds.concat(['i-allow', 'i-job']).forEach(id => Utils.el(id).value = '0');
+    this.calc();
+  },
+  deleteRecord(date) {
+    State.money = State.money.filter(r => r.date !== date);
+    Storage.save();
+    Analytics.render('money');
+  },
+  checkMidnightReset() {
+    const today = Utils.getTodayStr();
+    const lastDate = localStorage.getItem('cm_last_date');
+    if (lastDate && lastDate !== today) {
+      Utils.qsa('.js-money-inp').forEach(el => el.value = '0');
+      this.calc();
+    }
+    localStorage.setItem('cm_last_date', today);
+  }
+};
+
+const Hustles = {
+  init() {
+    const container = Utils.el('hustle-containers');
+    Object.keys(State.config.hustleDefs).forEach((key, index) => {
+      container.appendChild(this.buildPanel(key, index === 0));
+      this.renderDays(key);
+    });
+  },
+  buildPanel(key, isActive) {
+    const panel = document.createElement('div');
+    panel.className = `panel ${isActive ? 'active' : ''}`;
+    panel.id = `hp-${key}`;
+    panel.innerHTML = `
+      <div class="ring-card" id="ring-card-${key}"></div>
+      <div class="month-nav">
+        <button class="mnav-btn" data-action="hustle-month-prev" data-id="${key}">‹</button>
+        <div class="mnav-title" id="mnavtitle-${key}">Month 1</div>
+        <button class="mnav-btn" data-action="hustle-month-next" data-id="${key}">›</button>
+      </div>
+      <div id="days-${key}"></div>
+      <button class="btn-outline" style="width:100%;" data-action="hustle-reset" data-id="${key}">↺ Reset this month</button>
+    `;
+    return panel;
+  },
+  renderDays(key) {
+    const m = State.hustles[key].currentMonth || 1;
+    Utils.el(`mnavtitle-${key}`).textContent = `Month ${m}`;
+    const container = Utils.el(`days-${key}`);
+    container.innerHTML = '';
+
+    for (let d = 1; d <= 30; d++) {
+      const dataKey = `${key}_m${m}_d${d}`;
+      const entry = State.hustles[key][dataKey] || { done: false, note: '', income: 0 };
+      const el = document.createElement('div');
+      el.className = `day-entry ${entry.done ? 'done-entry' : ''}`;
+      
+      el.innerHTML = `
+        <div class="day-top" data-action="hustle-expand" data-id="${key}-${d}">
+          <div class="day-num">Day ${d}</div>
+          <div class="day-chk" data-action="hustle-toggle" data-id="${key}-${d}"></div>
+          <div class="day-preview ${entry.note ? 'filled' : ''}">${entry.note || 'Tap to log your day...'}</div>
+          ${entry.income > 0 ? `<span class="day-income-badge">+₱${entry.income}</span>` : ''}
+        </div>
+        <div class="day-expand" id="expand-${key}-${d}">
+          <div class="expand-lbl">What did you do today?</div>
+          <textarea class="day-textarea" id="note-${key}-${d}">${entry.note}</textarea>
+          <div class="day-income-row">
+            <input class="day-income-inp" type="number" id="income-${key}-${d}" value="${entry.income || ''}" placeholder="₱ Income">
+            <button class="btn-primary" data-action="hustle-save" data-id="${key}-${d}">Save</button>
+          </div>
+        </div>
+      `;
+      container.appendChild(el);
+    }
+    this.updateRing(key);
+  },
+  updateRing(key) {
+    const m = State.hustles[key].currentMonth || 1;
+    let done = 0, income = 0;
+    for(let d = 1; d <= 30; d++) {
+      const e = State.hustles[key][`${key}_m${m}_d${d}`];
+      if(e && e.done) { done++; income += e.income || 0; }
+    }
+    const pct = Math.round((done/30)*100);
+    const conf = State.config.hustleDefs[key];
+    
+    Utils.el(`ring-card-${key}`).innerHTML = `
+      <svg class="ring-svg" width="76" height="76" viewBox="0 0 76 76">
+        <circle class="ring-bg" cx="38" cy="38" r="32"/>
+        <circle class="ring-fill" cx="38" cy="38" r="32" stroke="${conf.color}" stroke-dasharray="201" stroke-dashoffset="${201 - (201*done/30)}"/>
+        <text x="38" y="43" text-anchor="middle" fill="${conf.color}" font-family="'Syne',sans-serif" font-weight="800" font-size="14">${pct}%</text>
+      </svg>
+      <div class="ring-info">
+        <div class="ri-title">${conf.name}</div>
+        <div class="ri-sub">${done} of 30 days done</div>
+        <div class="ri-income">💰 Month income: ₱${income.toLocaleString()}</div>
+      </div>
+    `;
+  },
+  toggleExpand(idStr) { Utils.el(`expand-${idStr}`).classList.toggle('open'); },
+  toggleDone(idStr) {
+    const [h, d] = idStr.split('-');
+    const m = State.hustles[h].currentMonth || 1;
+    const key = `${h}_m${m}_d${d}`;
+    if(!State.hustles[h][key]) State.hustles[h][key] = { done: false, note: '', income: 0 };
+    State.hustles[h][key].done = !State.hustles[h][key].done;
+    Storage.save();
+    this.renderDays(h);
+  },
+  saveDay(idStr) {
+    const [h, d] = idStr.split('-');
+    const m = State.hustles[h].currentMonth || 1;
+    const key = `${h}_m${m}_d${d}`;
+    if(!State.hustles[h][key]) State.hustles[h][key] = { done: false };
+    
+    State.hustles[h][key].note = Utils.el(`note-${idStr}`).value;
+    State.hustles[h][key].income = +Utils.el(`income-${idStr}`).value || 0;
+    if(State.hustles[h][key].note) State.hustles[h][key].done = true;
+    
+    Storage.save();
+    this.renderDays(h);
+  },
+  changeMonth(h, dir) {
+    State.hustles[h].currentMonth = Math.max(1, (State.hustles[h].currentMonth || 1) + dir);
+    Storage.save();
+    this.renderDays(h);
+  }
+};
+
+const Meals = {
+  init() { this.renderHistory(); },
+  shuffle() {
+    const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+    const db = State.config.mealDB;
+    const b = pick(db.breakfast), l = pick(db.lunch), d = pick(db.dinner), s = pick(db.snack);
+    
+    const res = Utils.el('meal-result');
+    res.style.display = 'block';
+    res.innerHTML = `
+      <div class="meal-slot-card"><div class="meal-slot-header"><span class="meal-slot-time">Breakfast</span><span class="meal-badge mb-b">AM</span></div><div class="meal-name">${b.name}</div><div class="meal-desc">${b.desc}</div><div class="meal-why">💪 ${b.why}</div></div>
+      <div class="meal-slot-card"><div class="meal-slot-header"><span class="meal-slot-time">Lunch</span><span class="meal-badge mb-l">PM</span></div><div class="meal-name">${l.name}</div><div class="meal-desc">${l.desc}</div><div class="meal-why">💡 ${l.why}</div></div>
+      <div class="meal-slot-card"><div class="meal-slot-header"><span class="meal-slot-time">Dinner</span><span class="meal-badge mb-d">EVE</span></div><div class="meal-name">${d.name}</div><div class="meal-desc">${d.desc}</div><div class="meal-why">🥗 ${d.why}</div></div>
+    `;
+    
+    State.meals.unshift({ date: new Date().toLocaleDateString(), b: b.name, d: d.name });
+    if(State.meals.length > 5) State.meals.pop();
+    Storage.save();
+    this.renderHistory();
+  },
+  renderHistory() {
+    const h = Utils.el('meal-history');
+    if(!State.meals.length) { h.innerHTML = '<div style="font-size:0.8rem;color:var(--sub);text-align:center;">No shuffles yet.</div>'; return; }
+    h.innerHTML = State.meals.map(m => `
+      <div style="padding:0.5rem 0; border-bottom:1px solid var(--border); font-size:0.75rem;">
+        <span style="color:var(--sub); font-family:'JetBrains Mono',monospace;">${m.date}</span><br>
+        ${m.b} · ${m.d}
+      </div>
+    `).join('');
+  }
+};
+
+const Workouts = {
+  init() {
+    const container = Utils.el('workout-containers');
+    Object.keys(State.config.workoutDB).forEach((day, index) => {
+      container.appendChild(this.buildPanel(day, index === 0));
+    });
+    this.renderRecent();
+  },
+  buildPanel(day, isActive) {
+    const data = State.config.workoutDB[day];
+    const panel = document.createElement('div');
+    panel.className = `panel ${isActive ? 'active' : ''}`;
+    panel.id = `wp-${day}`;
+    
+    if(data.isRest) {
+      panel.innerHTML = `<div class="rest-card"><div class="rest-emoji">${data.emoji}</div><div class="rest-title">${data.title}</div><div class="rest-desc">${data.desc}</div></div>`;
+    } else {
+      let exHtml = data.ex.map(e => `
+        <div class="ex-item">
+          <div><div class="ex-name">${e.n}</div><div style="font-size:0.68rem;color:var(--sub);">${e.eq} · <span style="color:var(--gold);">${e.s}</span></div></div>
+          <div></div><div class="ex-chk" onclick="this.classList.toggle('done')"></div>
+        </div>
+      `).join('');
+      panel.innerHTML = `
+        <div class="w-header-card"><div><div class="wh-title">${data.title}</div><div style="font-size:0.72rem;color:var(--sub);">${data.meta}</div></div><div class="wbadge ${data.class}">${data.badge}</div></div>
+        ${exHtml}
+      `;
+    }
+    return panel;
+  },
+  saveSession() {
+    const note = Utils.el('wlog-note').value;
+    const mins = Utils.el('wlog-mins').value;
+    if(!note && !mins) return;
+    
+    State.workouts.unshift({ date: Utils.getTodayStr(), note, mins });
+    if(State.workouts.length > 20) State.workouts.pop();
+    Storage.save();
+    
+    Utils.el('wlog-note').value = ''; Utils.el('wlog-mins').value = '';
+    this.renderRecent();
+  },
+  deleteSession(idx) {
+    State.workouts.splice(idx, 1);
+    Storage.save();
+    this.renderRecent();
+  },
+  renderRecent() {
+    const c = Utils.el('workout-recent-sessions');
+    if(!State.workouts.length) { c.innerHTML = '<div class="card" style="text-align:center;color:var(--sub);font-size:0.8rem;">No sessions yet.</div>'; return; }
+    
+    c.innerHTML = State.workouts.map((w, i) => `
+      <div class="card" style="display:flex; justify-content:space-between;">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--sub);">${w.date} · ${w.mins} mins</div>
+          <div style="font-size:0.8rem; margin-top:0.3rem;">${w.note}</div>
+        </div>
+        <button class="btn-danger" style="border:none; border-radius:6px; padding:0.4rem; cursor:pointer;" data-action="del-workout" data-id="${i}">🗑</button>
+      </div>
+    `).join('');
+  }
+};
+
+const Analytics = {
+  init() {
+    const container = Utils.el('analytics-container');
+    const sections = ['yta','fba','tiktok','jersey','all','workout','money'];
+    sections.forEach((id, idx) => {
+      const p = document.createElement('div');
+      p.className = `panel ${idx===0 ? 'active' : ''}`;
+      p.id = `ap-${id}`;
+      container.appendChild(p);
+    });
+    this.render('yta'); // Initial load
+  },
+  render(id) {
+    const container = Utils.el(`ap-${id}`);
+    if(!container) return;
+
+    if(id === 'money') {
+      const totalInc = State.money.reduce((s, r) => s + r.total, 0);
+      const totalSav = State.money.reduce((s, r) => s + r.save, 0);
+      container.innerHTML = `
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-val v-g">${Utils.formatMoney(totalInc)}</div><div class="stat-lbl">Earned</div></div>
+          <div class="stat-card"><div class="stat-val ${totalSav >= 0 ? 'v-o' : 'v-r'}">${Utils.formatMoney(totalSav)}</div><div class="stat-lbl">Saved</div></div>
+        </div>
+        <div class="card" style="margin-top:1rem;">
+          <div class="mbc-title">Records</div>
+          ${State.money.map(r => `
+            <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid var(--border);">
+              <div><div style="font-size:0.8rem;">${r.date}</div><div style="font-size:0.65rem; color:var(--sub);">Inc: ${r.total} | Sav: ${r.save}</div></div>
+              <button class="btn-danger" style="border:none; border-radius:4px; padding:0.3rem;" data-action="del-money" data-id="${r.date}">🗑</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else if (id === 'workout') {
+      container.innerHTML = `
+        <div class="stat-card"><div class="stat-val v-b">${State.workouts.length}</div><div class="stat-lbl">Total Sessions Logged</div></div>
+      `;
+    } else if (id === 'all') {
+      container.innerHTML = `<div class="card"><div style="text-align:center; color:var(--sub); font-size:0.8rem;">Keep logging daily inside Hustles to populate data here.</div></div>`;
+    } else {
+      // Individual hustle basic read
+      const conf = State.config.hustleDefs[id];
+      container.innerHTML = `<div class="stat-card"><div class="stat-val" style="color:${conf.color}">${conf.name}</div><div class="stat-lbl">Tracked Progress</div></div>`;
+    }
+  }
+};
+
+// --- 5. APP CONTROLLER ---
+const App = {
+  init() {
+    Storage.load();
+    Clock.init();
+    Money.init();
+    Hustles.init();
+    Meals.init();
+    Workouts.init();
+    Analytics.init();
+    this.bindEvents();
+  },
+  
+  bindEvents() {
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if(!btn) return;
+      
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      
+      switch(action) {
+        // Navigation & Tabs
+        case 'nav':
+          Utils.qsa('.page, .bn-tab').forEach(el => el.classList.remove('active'));
+          Utils.el(`page-${btn.dataset.target}`).classList.add('active');
+          btn.classList.add('active');
+          window.scrollTo(0,0);
+          break;
+        case 'tab-hustle':
+        case 'tab-analytics':
+        case 'tab-workout':
+          const group = action.split('-')[1]; // hustle, analytics, workout
+          Utils.qsa(`#page-${group} .panel`).forEach(el => el.classList.remove('active'));
+          Utils.qsa(`[data-action="tab-${group}"]`).forEach(el => el.classList.remove('active', 'gold', 'purple', 'blue'));
+          
+          Utils.el(`${group==='hustle'?'hp':group==='workout'?'wp':'ap'}-${btn.dataset.target}`).classList.add('active');
+          
+          // Styling active tabs
+          const colorClass = group === 'hustle' ? 'gold' : group === 'workout' ? 'blue' : 'purple';
+          btn.classList.add('active', colorClass);
+          
+          // Trigger render for analytics
+          if (group === 'analytics') Analytics.render(btn.dataset.target);
+          break;
+
+        // Money Handlers
+        case 'save-money': Money.saveRecord(); break;
+        case 'del-money': Money.deleteRecord(id); break;
+        
+        // Hustle Handlers
+        case 'hustle-expand': Hustles.toggleExpand(id); break;
+        case 'hustle-toggle': e.stopPropagation(); Hustles.toggleDone(id); break;
+        case 'hustle-save': Hustles.saveDay(id); break;
+        case 'hustle-month-prev': Hustles.changeMonth(id, -1); break;
+        case 'hustle-month-next': Hustles.changeMonth(id, 1); break;
+        
+        // Food Handlers
+        case 'shuffle-meal': Meals.shuffle(); break;
+        
+        // Workout Handlers
+        case 'save-workout': Workouts.saveSession(); break;
+        case 'del-workout': Workouts.deleteSession(id); break;
+      }
+    });
+
+    // Delegate Input calculations
+    document.addEventListener('input', (e) => {
+      if(e.target.classList.contains('js-money-inp')) Money.calc();
+    });
+  }
+};
+
+// Start the App
+window.addEventListener('DOMContentLoaded', () => App.init());
+
+</script>
+</body>
+</html>
